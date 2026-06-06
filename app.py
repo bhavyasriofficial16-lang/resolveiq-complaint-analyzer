@@ -18,7 +18,11 @@ st.markdown(
     """
 <style>
 .stApp {
-    background: #ffffff;
+    background:
+        radial-gradient(circle at 15% 20%, rgba(59,130,246,0.18), transparent 35%),
+        radial-gradient(circle at 85% 25%, rgba(139,92,246,0.16), transparent 35%),
+        radial-gradient(circle at 50% 85%, rgba(6,182,212,0.14), transparent 40%),
+        #ffffff;
     color: #0f172a;
 }
 
@@ -72,6 +76,14 @@ p, label, span {
     font-weight: 850;
     margin-bottom: 24px;
     letter-spacing: 0;
+
+    box-shadow: 0 0 25px rgba(37,99,235,0.25);
+    transition: all 0.3s ease;
+}
+
+.hero-badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 40px rgba(37,99,235,0.4);
 }
 
 .hero-simple h1 {
@@ -243,6 +255,30 @@ div[data-testid="stChatMessage"] p {
 textarea {
     color: #0f172a !important;
     background: #ffffff !important;
+}
+/* Glass Effect */
+
+.signal-card,
+.upload-panel,
+.chat-panel,
+div[data-testid="stMetric"] {
+    background: rgba(255,255,255,0.82);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.5);
+}
+
+/* Hover Animation */
+
+.signal-card,
+div[data-testid="stMetric"] {
+    transition: all 0.3s ease;
+}
+
+.signal-card:hover,
+div[data-testid="stMetric"]:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 24px 60px rgba(15,23,42,0.12);
 }
 
 @media (max-width: 900px) {
