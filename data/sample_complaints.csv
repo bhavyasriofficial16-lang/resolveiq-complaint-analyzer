@@ -1,0 +1,16 @@
+date,customer_id,complaint
+2026-04-01,C001,My order delivery is delayed by five days and the tracking link is not updating.
+2026-04-02,C002,Payment was deducted twice from my card but the order was not confirmed.
+2026-04-03,C003,The support agent was rude and disconnected the call without solving my issue.
+2026-04-04,C004,The product arrived damaged and one accessory was missing from the package.
+2026-04-05,C005,I requested a refund two weeks ago but there is still no response from your team.
+2026-04-06,C006,The app crashes every time I try to login using OTP.
+2026-04-07,C007,Great service. The delivery was quick and the support team was helpful.
+2026-04-08,C008,This is urgent. Money has been deducted and customer support is not replying.
+2026-04-09,C009,The website shows an error when I try to download my invoice.
+2026-04-10,C010,I received the wrong item and need an immediate replacement.
+2026-04-11,C011,The staff behavior at the branch was poor and the manager ignored my complaint.
+2026-04-12,C012,The refund process was smooth and the agent was polite.
+2026-04-13,C013,My package is marked delivered but I never received it.
+2026-04-14,C014,There may be fraud on my account because two unknown transactions are visible.
+2026-04-15,C015,The product quality is terrible and it stopped working after one day.
