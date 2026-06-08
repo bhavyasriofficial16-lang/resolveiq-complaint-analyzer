@@ -3,6 +3,7 @@ import plotly.express as px
 import streamlit as st
 from docx import Document
 from pypdf import PdfReader
+from auth import sign_in, sign_up
 
 from src.analyzer import analyze_complaints, build_summary
 from src.agent import add_agent_decisions, build_action_plan
@@ -11,6 +12,7 @@ from src.agent import add_agent_decisions, build_action_plan
 st.set_page_config(
     page_title="ResolveIQ",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 
@@ -76,7 +78,6 @@ p, label, span {
     font-weight: 850;
     margin-bottom: 24px;
     letter-spacing: 0;
-
     box-shadow: 0 0 25px rgba(37,99,235,0.25);
     transition: all 0.3s ease;
 }
@@ -111,13 +112,15 @@ p, label, span {
 }
 
 .signal-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
+    background: rgba(255,255,255,0.82);
+    border: 1px solid rgba(255,255,255,0.5);
     border-radius: 16px;
     padding: 18px;
     text-align: left;
     box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
     animation: floatCard 4s ease-in-out infinite;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
 }
 
 .signal-card:nth-child(2) {
@@ -158,14 +161,16 @@ p, label, span {
 }
 
 .upload-panel {
-    background: #f8fafc;
-    border: 1px solid #dbeafe;
+    background: rgba(255,255,255,0.82);
+    border: 1px solid rgba(255,255,255,0.5);
     border-radius: 18px;
     padding: 26px;
     margin: 12px auto 34px auto;
     text-align: center;
     max-width: 760px;
     box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
 }
 
 .upload-panel p {
@@ -210,11 +215,19 @@ div.stButton > button:hover,
 }
 
 div[data-testid="stMetric"] {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
+    background: rgba(255,255,255,0.82);
+    border: 1px solid rgba(255,255,255,0.5);
     padding: 18px;
     border-radius: 14px;
     box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    transition: all 0.3s ease;
+}
+
+div[data-testid="stMetric"]:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 24px 60px rgba(15,23,42,0.12);
 }
 
 div[data-testid="stMetric"] label {
@@ -233,12 +246,14 @@ div[data-testid="stMetric"] div {
 }
 
 .chat-panel {
-    background: #f8fafc;
-    border: 1px solid #dbeafe;
+    background: rgba(255,255,255,0.82);
+    border: 1px solid rgba(255,255,255,0.5);
     border-radius: 18px;
     padding: 22px;
     margin: 28px 0;
     box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
 }
 
 div[data-testid="stChatMessage"] {
@@ -256,29 +271,45 @@ textarea {
     color: #0f172a !important;
     background: #ffffff !important;
 }
-/* Glass Effect */
 
-.signal-card,
-.upload-panel,
-.chat-panel,
-div[data-testid="stMetric"] {
-    background: rgba(255,255,255,0.82);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255,255,255,0.5);
+section[data-testid="stSidebar"] {
+    background: #07172f;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Hover Animation */
-
-.signal-card,
-div[data-testid="stMetric"] {
-    transition: all 0.3s ease;
+section[data-testid="stSidebar"] * {
+    color: #e5f0ff !important;
 }
 
-.signal-card:hover,
-div[data-testid="stMetric"]:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 24px 60px rgba(15,23,42,0.12);
+section[data-testid="stSidebar"] div[role="radiogroup"] label {
+    background: transparent;
+    border-radius: 12px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+}
+
+section[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+section[data-testid="stSidebar"] {
+    background: #07172f;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+section[data-testid="stSidebar"] * {
+    color: #e5f0ff !important;
+}
+
+section[data-testid="stSidebar"] div[role="radiogroup"] label {
+    background: transparent;
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+}
+
+section[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+    background: rgba(255, 255, 255, 0.08);
 }
 
 @media (max-width: 900px) {
@@ -298,10 +329,6 @@ div[data-testid="stMetric"]:hover {
     """,
     unsafe_allow_html=True,
 )
-
-
-def load_sample_data():
-    return pd.read_csv("data/sample_complaints.csv")
 
 
 def load_uploaded_file(uploaded_file):
@@ -430,132 +457,206 @@ def answer_chat_question(question, action_df, action_plan):
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
+if "user" not in st.session_state:
+    st.session_state.user = None
+
 if "analysis_ready" not in st.session_state:
     st.session_state.analysis_ready = False
 
+if "report_history" not in st.session_state:
+    st.session_state.report_history = []
 
-st.html(
-    """
+if "recent_files" not in st.session_state:
+    st.session_state.recent_files = []
+
+
+def show_login_page():
+    st.html(
+        """
 <div class="hero-simple">
     <div class="hero-badge">ResolveIQ</div>
     <h1>AI Complaint Intelligence & Action Planner</h1>
     <p>
-        Upload complaint files, detect patterns, prioritize urgent cases,
-        assign escalation teams, and generate action-ready responses from one clean dashboard.
+        Login to analyze complaint files, generate action plans,
+        view reports, and chat with your complaint intelligence agent.
     </p>
-
-    <div class="hero-visual">
-        <div class="signal-card">
-            <div class="signal-label">Category</div>
-            <div class="signal-value">Auto Detect</div>
-        </div>
-        <div class="signal-card">
-            <div class="signal-label">Sentiment</div>
-            <div class="signal-value">Analyze</div>
-        </div>
-        <div class="signal-card">
-            <div class="signal-label">Priority</div>
-            <div class="signal-value">Rank</div>
-        </div>
-        <div class="signal-card">
-            <div class="signal-label">Action Plan</div>
-            <div class="signal-value">Export</div>
-        </div>
-    </div>
 </div>
-    """
-)
+        """
+    )
 
-st.html(
-    """
+    left, center, right = st.columns([1, 1.2, 1])
+
+    with center:
+        auth_mode = st.radio(
+            "Select",
+            ["Login", "Sign Up"],
+            horizontal=True,
+        )
+
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+
+        if auth_mode == "Login":
+            if st.button("Login", use_container_width=True):
+                user = sign_in(email, password)
+
+                if user:
+                    st.session_state.user = user
+                    st.rerun()
+                else:
+                    st.error("Invalid email or password")
+
+        else:
+            if st.button("Create Account", use_container_width=True):
+                user = sign_up(email, password)
+
+                if user:
+                    st.success("Account created successfully. Please login.")
+                else:
+                    st.error("Signup failed")
+
+
+def save_current_report(source_name, analyzed_df, action_df, summary, action_plan):
+    report = {
+        "source_name": source_name,
+        "total_complaints": summary["total_complaints"],
+        "top_category": summary["top_category"],
+        "high_urgency_count": summary["high_urgency_count"],
+        "negative_count": summary.get(
+            "negative_count",
+            summary.get("negative_sentiment_count", 0),
+        ),
+        "action_plan": action_plan,
+        "analyzed_df": analyzed_df,
+        "action_df": action_df,
+    }
+
+    st.session_state.report_history.insert(0, report)
+    st.session_state.recent_files.insert(0, source_name)
+
+
+def show_new_analysis():
+    st.html(
+        """
+<div class="hero-simple">
+    <div class="hero-badge">ResolveIQ</div>
+    <h1>New Complaint Analysis</h1>
+    <p>
+        Upload a complaint file and generate structured signals,
+        AI priorities, escalation teams, replies, and action plans.
+    </p>
+</div>
+        """
+    )
+
+    st.html(
+        """
 <div class="upload-panel">
     <h3>Start Analysis</h3>
-    <p>Upload CSV, TXT, PDF, or DOCX complaint files to generate insights and action plans.</p>
+    <p>Upload CSV, TXT, PDF, or DOCX complaint files.</p>
 </div>
-    """
-)
+        """
+    )
 
-uploaded_file = st.file_uploader(
-    "Choose complaint file",
-    type=["csv", "txt", "pdf", "docx"],
-    label_visibility="collapsed",
-)
+    uploaded_file = st.file_uploader(
+        "Choose complaint file",
+        type=["csv", "txt", "pdf", "docx"],
+        label_visibility="collapsed",
+    )
 
-if uploaded_file is not None:
+    if uploaded_file is None:
+        st.info("Upload a complaint file to begin analysis.")
+        return
+
     df = load_uploaded_file(uploaded_file)
 
     if df is None or df.empty:
-        st.error("Could not read this file. Please upload a valid CSV, TXT, PDF, or DOCX file.")
-        st.stop()
-else:
-    st.info("Upload a complaint file to begin analysis.")
-    st.stop()
+        st.error("Could not read this file. Please upload a valid file.")
+        return
 
-st.subheader("Raw Data")
-st.dataframe(df, use_container_width=True)
+    st.subheader("Raw Data")
+    st.dataframe(df, use_container_width=True)
 
-text_column = detect_text_column(df)
+    text_column = detect_text_column(df)
 
-if text_column is None:
-    st.error(
-        "No complaint text column found. Please use a column named complaint, "
-        "message, text, review, description, ticket, or feedback."
-    )
-    st.stop()
+    if text_column is None:
+        st.error(
+            "No complaint text column found. Use complaint, message, text, "
+            "review, description, ticket, or feedback."
+        )
+        return
 
-st.success(f"Using '{text_column}' as the complaint text column.")
+    st.success(f"Using '{text_column}' as the complaint text column.")
 
-if st.button("Analyze Complaints"):
-    analyzed_df = analyze_complaints(df, text_column)
+    if st.button("Analyze Complaints", use_container_width=True):
+        analyzed_df = analyze_complaints(df, text_column)
 
-    if text_column != "complaint":
-        analyzed_df["complaint"] = analyzed_df[text_column]
+        if text_column != "complaint":
+            analyzed_df["complaint"] = analyzed_df[text_column]
 
-    summary = build_summary(analyzed_df, text_column)
-    action_df = add_agent_decisions(analyzed_df)
-    action_plan = build_action_plan(action_df)
+        summary = build_summary(analyzed_df, text_column)
+        action_df = add_agent_decisions(analyzed_df)
+        action_plan = build_action_plan(action_df)
 
-    st.session_state.analyzed_df = analyzed_df
-    st.session_state.summary = summary
-    st.session_state.action_df = action_df
-    st.session_state.action_plan = action_plan
-    st.session_state.text_column = text_column
-    st.session_state.analysis_ready = True
-    st.session_state.chat_history = []
+        st.session_state.df = df
+        st.session_state.text_column = text_column
+        st.session_state.analyzed_df = analyzed_df
+        st.session_state.summary = summary
+        st.session_state.action_df = action_df
+        st.session_state.action_plan = action_plan
+        st.session_state.analysis_ready = True
+        st.session_state.chat_history = []
 
-if st.session_state.analysis_ready:
+        save_current_report(
+            uploaded_file.name,
+            analyzed_df,
+            action_df,
+            summary,
+            action_plan,
+        )
+
+        st.success("Analysis complete. Open Dashboard from the sidebar.")
+
+
+def show_dashboard():
+    st.title("Dashboard")
+
+    if not st.session_state.analysis_ready:
+        st.info("Run a new analysis first.")
+        return
+
     analyzed_df = st.session_state.analyzed_df
     summary = st.session_state.summary
     action_df = st.session_state.action_df
     action_plan = st.session_state.action_plan
-    text_column = st.session_state.text_column
-
-    st.subheader("Dashboard")
 
     col1, col2, col3, col4 = st.columns(4)
 
     col1.metric("Total Complaints", summary["total_complaints"])
     col2.metric("High Urgency", summary["high_urgency_count"])
-    col3.metric("Negative Complaints", summary["negative_count"])
+    col3.metric(
+        "Negative Complaints",
+        summary.get("negative_count", summary.get("negative_sentiment_count", 0)),
+    )
     col4.metric("Top Category", summary["top_category"])
-
-    critical_count = len(action_df[action_df["priority_level"] == "Critical"])
-    high_priority_count = len(action_df[action_df["priority_level"] == "High"])
-    top_team = action_df["escalation_team"].mode()[0]
 
     agent_col1, agent_col2, agent_col3 = st.columns(3)
 
-    agent_col1.metric("Critical Cases", critical_count)
-    agent_col2.metric("High Priority Cases", high_priority_count)
-    agent_col3.metric("Top Escalation Team", top_team)
+    agent_col1.metric(
+        "Critical Cases",
+        len(action_df[action_df["priority_level"] == "Critical"]),
+    )
+    agent_col2.metric(
+        "High Priority Cases",
+        len(action_df[action_df["priority_level"] == "High"]),
+    )
+    agent_col3.metric("Top Team", action_df["escalation_team"].mode()[0])
 
     st.subheader("Management Summary")
-    st.write(summary["summary_text"])
+    st.write(summary.get("summary_text", summary.get("executive_summary", "")))
 
     st.subheader("AI Agent Action Plan")
     st.write(action_plan)
-
-    st.subheader("Charts")
 
     chart_col1, chart_col2, chart_col3 = st.columns(3)
 
@@ -563,111 +664,138 @@ if st.session_state.analysis_ready:
         category_counts = analyzed_df["category"].value_counts().reset_index()
         category_counts.columns = ["category", "count"]
 
-        fig_category = px.bar(
+        fig = px.bar(
             category_counts,
             x="category",
             y="count",
-            title="Complaints by Category",
+            title="Categories",
         )
-
-        fig_category.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font_color="#0f172a",
-        )
-
-        st.plotly_chart(fig_category, use_container_width=True)
+        fig.update_layout(font_color="#0f172a")
+        st.plotly_chart(fig, use_container_width=True)
 
     with chart_col2:
         sentiment_counts = analyzed_df["sentiment"].value_counts().reset_index()
         sentiment_counts.columns = ["sentiment", "count"]
 
-        fig_sentiment = px.pie(
+        fig = px.pie(
             sentiment_counts,
             names="sentiment",
             values="count",
-            title="Sentiment Distribution",
+            title="Sentiment",
         )
-
-        fig_sentiment.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            font_color="#0f172a",
-        )
-
-        st.plotly_chart(fig_sentiment, use_container_width=True)
+        fig.update_layout(font_color="#0f172a")
+        st.plotly_chart(fig, use_container_width=True)
 
     with chart_col3:
         urgency_counts = analyzed_df["urgency"].value_counts().reset_index()
         urgency_counts.columns = ["urgency", "count"]
 
-        fig_urgency = px.bar(
+        fig = px.bar(
             urgency_counts,
             x="urgency",
             y="count",
-            title="Urgency Levels",
+            title="Urgency",
+        )
+        fig.update_layout(font_color="#0f172a")
+        st.plotly_chart(fig, use_container_width=True)
+
+
+def show_history():
+    st.title("History")
+
+    if not st.session_state.report_history:
+        st.info("No report history yet.")
+        return
+
+    history_rows = []
+
+    for report in st.session_state.report_history:
+        history_rows.append(
+            {
+                "File": report["source_name"],
+                "Total Complaints": report["total_complaints"],
+                "Top Category": report["top_category"],
+                "High Urgency": report["high_urgency_count"],
+                "Negative": report["negative_count"],
+            }
         )
 
-        fig_urgency.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font_color="#0f172a",
+    st.dataframe(pd.DataFrame(history_rows), use_container_width=True)
+
+
+def show_uploads():
+    st.title("Uploads")
+
+    if not st.session_state.recent_files:
+        st.info("No uploaded files yet.")
+        return
+
+    for file_name in st.session_state.recent_files:
+        st.write(f"Uploaded file: {file_name}")
+
+
+def show_reports():
+    st.title("Reports")
+
+    if not st.session_state.analysis_ready:
+        st.info("Analyze a file first to download reports.")
+        return
+
+    analyzed_df = st.session_state.analyzed_df
+    action_df = st.session_state.action_df
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.download_button(
+            label="Download Analyzed CSV",
+            data=analyzed_df.to_csv(index=False).encode("utf-8"),
+            file_name="analyzed_complaints.csv",
+            mime="text/csv",
+            use_container_width=True,
         )
 
-        st.plotly_chart(fig_urgency, use_container_width=True)
+    with col2:
+        st.download_button(
+            label="Download AI Action Plan",
+            data=action_df.to_csv(index=False).encode("utf-8"),
+            file_name="ai_action_plan.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
 
     st.subheader("Analyzed Complaints")
     st.dataframe(analyzed_df, use_container_width=True)
 
     st.subheader("AI Agent Decisions")
+    st.dataframe(action_df, use_container_width=True)
 
-    agent_columns = [
-        text_column,
-        "category",
-        "sentiment",
-        "urgency",
-        "priority_score",
-        "priority_level",
-        "escalation_team",
-        "recommended_action",
-        "sla",
-        "suggested_reply",
-    ]
 
-    st.dataframe(action_df[agent_columns], use_container_width=True)
+def show_chat_booth():
+    st.title("Chat Booth")
 
-    csv_data = analyzed_df.to_csv(index=False).encode("utf-8")
-
-    st.download_button(
-        label="Download Analyzed CSV",
-        data=csv_data,
-        file_name="analyzed_complaints.csv",
-        mime="text/csv",
-    )
-
-    action_csv = action_df.to_csv(index=False).encode("utf-8")
-
-    st.download_button(
-        label="Download AI Action Plan",
-        data=action_csv,
-        file_name="ai_action_plan.csv",
-        mime="text/csv",
-    )
-
-    st.markdown('<div class="chat-panel">', unsafe_allow_html=True)
-    st.subheader("AI Complaint Chat Booth")
+    if not st.session_state.analysis_ready:
+        st.info("Analyze a file first, then ask questions.")
+        return
 
     for message in st.session_state.chat_history:
         with st.chat_message(message["role"]):
             st.write(message["content"])
 
-    user_question = st.chat_input("Ask about priorities, teams, replies, SLA, or action plan...")
+    user_question = st.chat_input(
+        "Ask about priorities, teams, replies, SLA, or action plan..."
+    )
 
     if user_question:
         st.session_state.chat_history.append(
             {"role": "user", "content": user_question}
         )
 
-        answer = answer_chat_question(user_question, action_df, action_plan)
+        answer = answer_chat_question(
+            user_question,
+            st.session_state.action_df,
+            st.session_state.action_plan,
+        )
 
         st.session_state.chat_history.append(
             {"role": "assistant", "content": answer}
@@ -676,4 +804,60 @@ if st.session_state.analysis_ready:
         with st.chat_message("assistant"):
             st.write(answer)
 
-    st.markdown("</div>", unsafe_allow_html=True)
+
+def show_recents():
+    st.title("Recents")
+
+    if not st.session_state.recent_files:
+        st.info("No recent files yet.")
+        return
+
+    for index, file_name in enumerate(st.session_state.recent_files[:5], start=1):
+        st.write(f"{index}. {file_name}")
+
+
+if st.session_state.user is None:
+    show_login_page()
+    st.stop()
+
+
+with st.sidebar:
+    st.markdown("## ResolveIQ")
+    st.caption("Complaint Intelligence Workspace")
+
+    selected_page = st.radio(
+        "Menu",
+        [
+            "New Analysis",
+            "Dashboard",
+            "History",
+            "Uploads",
+            "Reports",
+            "Chat Booth",
+            "Recents",
+        ],
+        label_visibility="collapsed",
+    )
+
+    st.divider()
+
+    if st.button("Logout", use_container_width=True):
+        st.session_state.user = None
+        st.session_state.analysis_ready = False
+        st.rerun()
+
+
+if selected_page == "New Analysis":
+    show_new_analysis()
+elif selected_page == "Dashboard":
+    show_dashboard()
+elif selected_page == "History":
+    show_history()
+elif selected_page == "Uploads":
+    show_uploads()
+elif selected_page == "Reports":
+    show_reports()
+elif selected_page == "Chat Booth":
+    show_chat_booth()
+elif selected_page == "Recents":
+    show_recents()
